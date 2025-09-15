@@ -1,12 +1,18 @@
-import { CreateUserParams, SignInParams } from "@/type";
-import { Account, Avatars, Client, Databases, ID, Query } from "react-native-appwrite";
+import { CATEGORIES } from "@/constants";
+import { CreateUserParams, SignInParams,GetMenuParams } from "@/type";
+import { Account, Avatars, Client, Databases, ID, Query, Storage } from "react-native-appwrite";
 
 export const appwriteConfig = {
   endpoint: process.env.EXPO_PUBLIC_APPWRITE_ENDPOINT!,
   platform: "com.kp.foody",
   projectId: process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID!,
   databaseId: "68c6a4dd00223b4edd20",
+  bucketId:"68c80f8b0030d47b9475",
   tableId: "user", // ✅ using Tables API
+  categoryId:"categories",
+  menuId:"menu",
+  customizationId:"customizations",
+  menuCustomizationId:"menu_customizations"
 };
 
 export const client = new Client();
@@ -18,6 +24,7 @@ client
 
 export const account = new Account(client);
 export const databases = new Databases(client);
+export const storage =  new Storage(client)
 const avatars = new Avatars(client);
 
 export const createUser = async ({ email, password, name }: CreateUserParams) => {
@@ -76,5 +83,40 @@ export const getCurrentUser = async () => {
   } catch (e: any) {
     console.log("getCurrentUser error:", e);
     throw new Error(e.message || e);
+  }
+};
+
+export const getMenu = async ({ category, query }: GetMenuParams) => {
+  try {
+    const queries: any[] = [];
+
+    if (category) queries.push(Query.equal("categories", category));
+    if (query) queries.push(Query.search("name", query));
+
+    const menus = await databases.listDocuments(
+      appwriteConfig.databaseId,
+      appwriteConfig.menuId, // ✅ point to menu collection, not user table
+      queries
+    );
+
+    return menus.documents;
+  } catch (e: any) {
+    console.error("getMenu error:", e);
+    throw new Error(e.message || "Failed to fetch menu");
+  }
+};
+
+
+export const getCategories = async () => {
+  try {
+    const categories = await databases.listDocuments(
+      appwriteConfig.databaseId,
+      appwriteConfig.categoryId // ✅ use the categories collection
+    );
+
+    return categories.documents; // ✅ return the array of categories
+  } catch (e: any) {
+    console.error("getCategories error:", e);
+    throw new Error(e.message || "Failed to fetch categories");
   }
 };
