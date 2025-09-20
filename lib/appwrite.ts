@@ -120,3 +120,35 @@ export const getCategories = async () => {
     throw new Error(e.message || "Failed to fetch categories");
   }
 };
+
+export const updateUser = async (userData: Partial<{ name: string; bio: string }>) => {
+  try {
+    const currentAccount = await account.get();
+    if (!currentAccount) throw new Error("No current account");
+
+    // Get the current user document
+    const currentUser = await databases.listDocuments(
+      appwriteConfig.databaseId,
+      appwriteConfig.tableId,
+      [Query.equal("accountId", currentAccount.$id)]
+    );
+
+    if (!currentUser || currentUser.total === 0)
+      throw new Error("User not found in database");
+
+    const userDoc = currentUser.documents[0];
+
+    // Update the user document with new data
+    const updatedUser = await databases.updateDocument(
+      appwriteConfig.databaseId,
+      appwriteConfig.tableId,
+      userDoc.$id,
+      userData
+    );
+
+    return updatedUser;
+  } catch (e: any) {
+    console.error("updateUser error:", e);
+    throw new Error(e.message || "Failed to update user");
+  }
+};
