@@ -3,13 +3,14 @@ import React, { useState } from "react";
 import { Link, router } from "expo-router";
 import CustomInput from "@/components/CustomInput";
 import CustomButton from "@/components/CustomButton";
-// ✅ Import Appwrite sign-in function
-import { signIn } from "@/lib/appwrite"; 
-import * as Sentry from '@sentry/react-native'
+import useAuthStore from "@/store/auth.store"; // ✅ Import Zustand store
+import * as Sentry from "@sentry/react-native";
 
 const SignInScreen = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState({ email: "", password: "" });
+
+  const login = useAuthStore((state) => state.login); // ✅ Get login from store
 
   const submit = async () => {
     const { email, password } = form;
@@ -21,13 +22,11 @@ const SignInScreen = () => {
     setIsSubmitting(true);
 
     try {
-      // ✅ Use the imported signIn function
-      await signIn({ email, password });
-
-      router.replace("/");
+      await login(email, password); // ✅ This updates Zustand automatically
+      router.replace("/"); // ✅ Navigate to home
     } catch (error: any) {
       Alert.alert("Error", error.message);
-      Sentry.captureEvent(error)
+      Sentry.captureEvent(error);
     } finally {
       setIsSubmitting(false);
     }
@@ -39,10 +38,7 @@ const SignInScreen = () => {
         placeholder="Enter your email"
         value={form.email}
         onChangeText={(text) =>
-          setForm((prev) => ({
-            ...prev,
-            email: text,
-          }))
+          setForm((prev) => ({ ...prev, email: text }))
         }
         label="Email"
         keyboardType="email-address"
@@ -51,13 +47,10 @@ const SignInScreen = () => {
         placeholder="Enter your password"
         value={form.password}
         onChangeText={(text) =>
-          setForm((prev) => ({
-            ...prev,
-            password: text,
-          }))
+          setForm((prev) => ({ ...prev, password: text }))
         }
         label="Password"
-        secureTextEntry={true}
+        secureTextEntry
       />
 
       <CustomButton title="Sign In" isLoading={isSubmitting} onPress={submit} />
