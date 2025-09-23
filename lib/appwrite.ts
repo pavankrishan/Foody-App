@@ -1,5 +1,4 @@
-import { CATEGORIES } from "@/constants";
-import { CreateUserParams, SignInParams, GetMenuParams } from "@/type";
+import { CreateUserParams, GetMenuParams, SignInParams, User } from "@/type";
 import { Account, Avatars, Client, Databases, ID, Query, Storage } from "react-native-appwrite";
 
 export const appwriteConfig = {
@@ -124,6 +123,21 @@ export const getMenu = async ({ category, query }: GetMenuParams) => {
   }
 };
 
+// ✅ Get single Menu Item by id
+export const getMenuItemById = async (id: string) => {
+  try {
+    const doc = await databases.getDocument(
+      appwriteConfig.databaseId,
+      appwriteConfig.menuId,
+      id
+    );
+    return doc;
+  } catch (e: any) {
+    console.error("getMenuItemById error:", e);
+    throw new Error(e.message || "Failed to fetch menu item");
+  }
+};
+
 // ✅ Fetch Categories
 export const getCategories = async () => {
   try {
@@ -136,5 +150,61 @@ export const getCategories = async () => {
   } catch (e: any) {
     console.error("getCategories error:", e);
     throw new Error(e.message || "Failed to fetch categories");
+  }
+};
+
+export const updateUser = async (
+  userData: Partial<{ name: string; bio: string }>
+): Promise<User> => {
+  try {
+    const currentAccount = await account.get();
+    if (!currentAccount) throw new Error("No current account");
+
+    // Get the current user document
+    const currentUser = await databases.listDocuments(
+      appwriteConfig.databaseId,
+      appwriteConfig.tableId,
+      [Query.equal("accountId", currentAccount.$id)]
+    );
+
+    if (!currentUser || currentUser.total === 0)
+      throw new Error("User not found in database");
+
+    const userDoc = currentUser.documents[0];
+
+    // Try sending both fields if provided; fallback if schema doesn't support bio
+    const primaryPayload: { name?: string; bio?: string } = {};
+    if (typeof userData.name === "string") primaryPayload.name = userData.name;
+    if (typeof userData.bio === "string") primaryPayload.bio = userData.bio;
+
+    try {
+      const updatedUser = await databases.updateDocument(
+        appwriteConfig.databaseId,
+        appwriteConfig.tableId,
+        userDoc.$id,
+        primaryPayload
+      );
+      return updatedUser as unknown as User;
+    } catch (err: any) {
+      const message = String(err?.message || err);
+      const unknownAttr = message.includes("Unknown attribute");
+      const relatesToBio = message.includes("bio");
+      if (unknownAttr && relatesToBio) {
+        const fallbackPayload: { name?: string } = {};
+        if (typeof userData.name === "string") fallbackPayload.name = userData.name;
+
+        const updatedUser = await databases.updateDocument(
+          appwriteConfig.databaseId,
+          appwriteConfig.tableId,
+          userDoc.$id,
+          fallbackPayload
+        );
+        return updatedUser as unknown as User;
+      }
+      throw err;
+    }
+  } catch (e: any) {
+    console.error("updateUser error:", e);
+    throw new Error(e.message || "Failed to update user");
   }
 };
